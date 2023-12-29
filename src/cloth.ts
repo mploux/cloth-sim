@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { chunkify } from './utils';
 
 const CONSTRAINT_ITERATIONS = 60
-const GRAVITY = new THREE.Vector3(0, -0.981, 0)
+const GRAVITY = new THREE.Vector3(0, -9.81, 0)
 const STRUCTURAL_CONSTRAINT_OPTS = {
   stretchFactor: 0.9,
   shrinkFactor: 0.05
@@ -43,11 +43,11 @@ export class ClothPoint {
     this.acc.add(f.clone().multiplyScalar(this.mass))
   }
 
-  addGravity(acceleration: THREE.Vector3) {
-    this.acc.add(acceleration)
+  addGravity(acceleration: THREE.Vector3, deltaSeconds: number) {
+    this.acc.add(acceleration.clone().multiplyScalar(deltaSeconds))
   }
 
-  move(offset: THREE.Vector3, clamp: number = 0.01) {
+  move(offset: THREE.Vector3) {
     if (this.fixed) return
     this.pos.add(offset)
   }
@@ -89,8 +89,8 @@ export class ClothConstraint {
     if (correctionFactor > 0) factor = this.stretchFactor
     const hasFixed = this.p1.fixed || this.p2.fixed
     if (hasFixed) factor *= 2
-    this.p1.move(correction.multiplyScalar(factor), 1)
-    this.p2.move(correction.multiplyScalar(-factor), 1)
+    this.p1.move(correction.multiplyScalar(factor))
+    this.p2.move(correction.multiplyScalar(-factor))
   }
 
   get points() { return [this.p1, this.p2]}
@@ -190,7 +190,7 @@ export default class Cloth {
       triangle.addWindForce(new THREE.Vector3(15, 0, -15))
     }
     for (const point of this._points) {
-      point.addGravity(GRAVITY)
+      point.addGravity(GRAVITY, deltaSeconds)
       point.update(deltaSeconds)
     }
     for (let i = 0; i < CONSTRAINT_ITERATIONS; i++) {
