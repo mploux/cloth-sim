@@ -3,7 +3,8 @@ import { chunkify } from './utils';
 
 export type ClothConstraintOpts = {
   stretchFactor: number;
-  shrinkFactor: number
+  shrinkFactor: number;
+  restLength?: number;
 }
 
 export type ClothOpts = {
@@ -67,7 +68,7 @@ export class ClothConstraint {
   constructor(p1: ClothPoint, p2: ClothPoint, opts: ClothConstraintOpts) {
     this.p1 = p1
     this.p2 = p2
-    this.restLength = this.p1.pos.distanceTo(this.p2.pos)
+    this.restLength = opts.restLength || this.p1.pos.distanceTo(this.p2.pos)
     this.length = this.p1.pos.distanceTo(this.p2.pos)
     this.stretchFactor = opts.stretchFactor
     this.shrinkFactor = opts.shrinkFactor
@@ -175,10 +176,21 @@ export default class Cloth {
           new ClothConstraint(this._points[p2], this._points[p4], opts.sheerConstraints),
         ]
       }),
+      // add a fake rope
+      new ClothConstraint(this._points[2], new ClothPoint(new THREE.Vector3(17, -3, 0), true), {
+        stretchFactor: 1,
+        shrinkFactor: 0,
+        restLength: 10
+      })
     ].filter(Boolean) as ClothConstraint[]
+
+    // console.log(this._points.findIndex(p => p.fixed))
   }
 
+  i = 0
   update(deltaSeconds: number) {
+    this.i += 0.005
+    
     for (let i = 0; i < CONSTRAINT_ITERATIONS; i++) {
       for (const constraint of this._constraints) {
         constraint.satisfyConstraint()
@@ -186,9 +198,7 @@ export default class Cloth {
     }
     for (const triangle of this._triangles) {
       triangle.update()
-        triangle.addWindForce(new THREE.Vector3(7, 0, -12))
-      // else
-      // triangle.addWindForce(new THREE.Vector3(15, 0, 15))
+      triangle.addWindForce(new THREE.Vector3(10, 0, -20))
     }
     for (const point of this._points) {
       point.addGravity(GRAVITY, deltaSeconds)
@@ -199,6 +209,9 @@ export default class Cloth {
         constraint.satisfyConstraint()
       }
     }
+
+    // update fake rope length
+    this._constraints[this._constraints.length - 1].restLength = Math.cos(this.i) * 6 + 11
   }
 
   get vertices() { return this._points.map(p => p.pos) }

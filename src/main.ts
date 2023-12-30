@@ -6,14 +6,14 @@ import ClothDebugRenderer from './cloth-debug-renderer';
 
 const GENOA_CONSTRAINT_OPTS: ClothOpts = {
   structuralConstraints: {
-    stretchFactor: 0.9,
-    shrinkFactor: 0.005
+    stretchFactor: 1,
+    shrinkFactor: 0.01
   },
   sheerConstraints: {
-    stretchFactor: 0.9,
-    shrinkFactor: 0.005
+    stretchFactor: 1,
+    shrinkFactor: 0.01
   },
-  isPointFixed: (x: number, y: number) => (y >= 27.8 || x === 0 || x === 14) 
+  isPointFixed: (x: number, y: number) => (y >= 27.8 || x === 0) 
 }
 
 const MAINSAIL_CONSTRAINT_OPTS: ClothOpts = {
@@ -47,21 +47,21 @@ const scene = new THREE.Scene();
 const genoaCloth = await loadCloth('./genoa_sail.obj', GENOA_CONSTRAINT_OPTS)
 const genoaDebugRenderer = new ClothDebugRenderer(genoaCloth)
 
-const mainSailCloth = await loadCloth('./main_sail.obj', MAINSAIL_CONSTRAINT_OPTS)
-const mainSailDebugRenderer = new ClothDebugRenderer(mainSailCloth)
+// const mainSailCloth = await loadCloth('./main_sail.obj', MAINSAIL_CONSTRAINT_OPTS)
+// const mainSailDebugRenderer = new ClothDebugRenderer(mainSailCloth)
 
 // points.scale.set(10, 10, 10)
 // lines.forEach(line => line.scale.set(10, 10, 10))
 
-scene.add(...mainSailDebugRenderer.sceneObjects)
+// scene.add(...mainSailDebugRenderer.sceneObjects)
 scene.add(...genoaDebugRenderer.sceneObjects)
 
 function update(deltaSecs: number) {
-  mainSailCloth.update(deltaSecs)
+  // mainSailCloth.update(deltaSecs)
   genoaCloth.update(deltaSecs)
 
-  mainSailDebugRenderer.update()
-  genoaDebugRenderer.update(new THREE.Vector3(-8.5, 0, 0))
+  // mainSailDebugRenderer.update()
+  genoaDebugRenderer.update() //new THREE.Vector3(-8.5, 0, 0))
 }
 
 let lastTime = performance.now()
@@ -71,7 +71,7 @@ function render() {
   const currTime = performance.now()
   const deltaSeconds = (currTime - lastTime) / 1000
   if (deltaSeconds >= 1/60) {
-    update(deltaSeconds)
+    update(1/60)
     lastTime = currTime
   }
   
@@ -83,7 +83,6 @@ render();
 
 
 async function loadCloth(objFile: string, clothOpts: ClothOpts) {
-  // load obj (simple)
   const file = (await new THREE.FileLoader().loadAsync(objFile)) as string
   const fileLines = file.split('\n')
   const { vertices, faces } = fileLines.reduce((acc, line) => {

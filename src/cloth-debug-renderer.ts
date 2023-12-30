@@ -51,5 +51,5 @@ export default class ClothDebugRenderer {
     })
   }
 
-  get sceneObjects() { return [this.points, ...this.lines] }
+  get sceneObjects() { return [...this.lines] }
 }
