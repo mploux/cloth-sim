@@ -1,7 +1,32 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-import Cloth from './cloth';
+import Cloth, { ClothOpts } from './cloth';
+import ClothDebugRenderer from './cloth-debug-renderer';
+
+const GENOA_CONSTRAINT_OPTS: ClothOpts = {
+  structuralConstraints: {
+    stretchFactor: 0.9,
+    shrinkFactor: 0.005
+  },
+  sheerConstraints: {
+    stretchFactor: 0.9,
+    shrinkFactor: 0.005
+  },
+  isPointFixed: (x: number, y: number) => (y >= 27.8 || x === 0 || x === 14) 
+}
+
+const MAINSAIL_CONSTRAINT_OPTS: ClothOpts = {
+  structuralConstraints: {
+    stretchFactor: 0.95,
+    shrinkFactor: 0.05
+  },
+  sheerConstraints: {
+    stretchFactor: 0.9,
+    shrinkFactor: 0.1
+  },
+  isPointFixed: (x: number, y: number) => x === 0 || (y <= 0.5 && x >= 7.5)
+}
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
@@ -19,62 +44,24 @@ controls.maxDistance = 180;
 
 const scene = new THREE.Scene();
 
-// load obj (simple)
-const file = (await new THREE.FileLoader().loadAsync('./main_sail.obj')) as string
-const fileLines = file.split('\n')
-const { vertices, faces } = fileLines.reduce((acc, line) => {
-  const [key, ...toks] = line.split(' ')
-  if (key === 'v') 
-    acc.vertices = [...(acc.vertices || []), +toks[0], +toks[1], +toks[2]]
-  if (key === 'f')
-    acc.faces = [...(acc.faces || []), toks.map(Number).map(v => v - 1)]
-  return acc
-}, {} as { vertices: number[], faces: number[][] })
+const genoaCloth = await loadCloth('./genoa_sail.obj', GENOA_CONSTRAINT_OPTS)
+const genoaDebugRenderer = new ClothDebugRenderer(genoaCloth)
 
-const cloth = new Cloth(new Float32Array(vertices), faces)
-
-const points = new THREE.Points(
-  new THREE.BufferGeometry(), 
-  new THREE.PointsMaterial({color: 0xFF00FF, size: 0.5})
-);
-
-const lines = cloth.constraints.map((structure) => {
-  const geom = new THREE.BufferGeometry().setFromPoints(structure.points.map(s => s.pos));
-  return new THREE.Line(geom, new THREE.LineBasicMaterial({color: 0xFFFFFF}))
-})
+const mainSailCloth = await loadCloth('./main_sail.obj', MAINSAIL_CONSTRAINT_OPTS)
+const mainSailDebugRenderer = new ClothDebugRenderer(mainSailCloth)
 
 // points.scale.set(10, 10, 10)
 // lines.forEach(line => line.scale.set(10, 10, 10))
 
-scene.add(points, ...lines)
+scene.add(...mainSailDebugRenderer.sceneObjects)
+scene.add(...genoaDebugRenderer.sceneObjects)
 
 function update(deltaSecs: number) {
-  cloth.update(deltaSecs)
-  points.geometry.setFromPoints(cloth.vertices)
-  points.geometry.dispose()
-  lines.forEach((line, idx) => {
-    const structure = cloth.constraints[idx]
-    const constraint = structure.constraintAmount
-    if (constraint < 0) {
-      const col = Math.abs(constraint) * 20
-      line.material.color.r = col + 1
-      line.material.color.g = col + 1
-      line.material.color.b = 1 - col
-    }
-    else if (constraint > 0) {
-      const col = Math.abs(constraint) * 20
-      line.material.color.r = col + 1
-      line.material.color.g = 1 - col
-      line.material.color.b = 1 - col
-    }
-    else {
-      line.material.color.r = 1;
-      line.material.color.g = 1;
-      line.material.color.b = 1;
-    }
-    line.geometry.dispose()
-    line.geometry.setFromPoints(structure.points.map(s => s.pos))
-  })
+  mainSailCloth.update(deltaSecs)
+  genoaCloth.update(deltaSecs)
+
+  mainSailDebugRenderer.update()
+  genoaDebugRenderer.update(new THREE.Vector3(-8.5, 0, 0))
 }
 
 let lastTime = performance.now()
@@ -93,3 +80,19 @@ function render() {
 }
 
 render();
+
+
+async function loadCloth(objFile: string, clothOpts: ClothOpts) {
+  // load obj (simple)
+  const file = (await new THREE.FileLoader().loadAsync(objFile)) as string
+  const fileLines = file.split('\n')
+  const { vertices, faces } = fileLines.reduce((acc, line) => {
+    const [key, ...toks] = line.split(' ')
+    if (key === 'v') 
+      acc.vertices = [...(acc.vertices || []), +toks[0], +toks[1], +toks[2]]
+    if (key === 'f')
+      acc.faces = [...(acc.faces || []), toks.map(Number).map(v => v - 1)]
+    return acc
+  }, {} as { vertices: number[], faces: number[][] })
+  return new Cloth(new Float32Array(vertices), faces, clothOpts)
+}

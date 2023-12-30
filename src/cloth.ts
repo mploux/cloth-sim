@@ -1,16 +1,19 @@
 import * as THREE from 'three';
 import { chunkify } from './utils';
 
-const CONSTRAINT_ITERATIONS = 60
+export type ClothConstraintOpts = {
+  stretchFactor: number;
+  shrinkFactor: number
+}
+
+export type ClothOpts = {
+  structuralConstraints: ClothConstraintOpts
+  sheerConstraints: ClothConstraintOpts
+  isPointFixed: (x:number, y:number) => boolean
+}
+
+const CONSTRAINT_ITERATIONS = 32
 const GRAVITY = new THREE.Vector3(0, -9.81, 0)
-const STRUCTURAL_CONSTRAINT_OPTS = {
-  stretchFactor: 0.9,
-  shrinkFactor: 0.05
-}
-const SHEER_CONSTRAINT_OPTS = {
-  stretchFactor: 1,
-  shrinkFactor: 0
-}
 
 export class ClothPoint {
   pos: THREE.Vector3
@@ -34,7 +37,7 @@ export class ClothPoint {
   update(deltaSeconds: number) {
     if (this.fixed) return
     let temp = this.pos.clone();
-		this.pos.add(this.velocity.multiplyScalar(0.99).add(this.acc.clone().multiplyScalar(deltaSeconds)))
+		this.pos.add(this.velocity.clone().multiplyScalar(0.99).add(this.acc.clone().multiplyScalar(deltaSeconds)))
 		this.oldPos = temp.clone();
     this.acc = new THREE.Vector3()
   }
@@ -51,11 +54,6 @@ export class ClothPoint {
     if (this.fixed) return
     this.pos.add(offset)
   }
-}
-
-type ClothConstraintOpts = {
-  stretchFactor: number;
-  shrinkFactor: number
 }
 
 export class ClothConstraint {
@@ -139,10 +137,10 @@ export default class Cloth {
   private _triangles: ClothTriangle[]
   private _constraints: ClothConstraint[]
 
-  constructor(vertices: Float32Array, faces: number[][]) {
+  constructor(vertices: Float32Array, faces: number[][], opts: ClothOpts) {
     this._points = chunkify([...vertices], 3)
       .map(([x, y, z]) => new ClothPoint(
-        new THREE.Vector3(x, y, z), (x === 0 || (x >= 7.5 && y < 1))
+        new THREE.Vector3(x, y, z), opts.isPointFixed(x, y)
       ))
     this._triangles = faces.flatMap(face => {
       const [p1, p2, p3, p4] = face
@@ -154,6 +152,7 @@ export default class Cloth {
       ]
     })
     this._constraints = [
+      // add structural constraints
       ...faces.flatMap(face => {
         const segments = [] as [number, number][]
         face.forEach((val, idx, arr) => {
@@ -164,30 +163,32 @@ export default class Cloth {
         })
         segments.push([face[face.length - 1], face[0]])
         return segments.map(([a, b]) => 
-          new ClothConstraint(this._points[a], this._points[b], STRUCTURAL_CONSTRAINT_OPTS)
+          new ClothConstraint(this._points[a], this._points[b], opts.structuralConstraints)
         )
       }),
+      // add sheer constraints for quads
       ...faces.flatMap(face => {
         if (face.length !== 4) return null
         const [p1, p2, p3, p4] = face
         return [
-          new ClothConstraint(this._points[p1], this._points[p3], SHEER_CONSTRAINT_OPTS),
-          new ClothConstraint(this._points[p2], this._points[p4], SHEER_CONSTRAINT_OPTS),
+          new ClothConstraint(this._points[p1], this._points[p3], opts.sheerConstraints),
+          new ClothConstraint(this._points[p2], this._points[p4], opts.sheerConstraints),
         ]
       }),
     ].filter(Boolean) as ClothConstraint[]
   }
 
   update(deltaSeconds: number) {
-
-    // for (let i = 0; i < CONSTRAINT_ITERATIONS; i++) {
-    //   for (const constraint of this._constraints) {
-    //     constraint.satisfyConstraint()
-    //   }
-    // }
+    for (let i = 0; i < CONSTRAINT_ITERATIONS; i++) {
+      for (const constraint of this._constraints) {
+        constraint.satisfyConstraint()
+      }
+    }
     for (const triangle of this._triangles) {
       triangle.update()
-      triangle.addWindForce(new THREE.Vector3(15, 0, -15))
+        triangle.addWindForce(new THREE.Vector3(7, 0, -12))
+      // else
+      // triangle.addWindForce(new THREE.Vector3(15, 0, 15))
     }
     for (const point of this._points) {
       point.addGravity(GRAVITY, deltaSeconds)
