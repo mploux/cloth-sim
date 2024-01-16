@@ -176,20 +176,20 @@ export default class Cloth {
           new ClothConstraint(this._points[p2], this._points[p4], opts.sheerConstraints),
         ]
       }),
-      // add a fake rope
-      new ClothConstraint(this._points[2], new ClothPoint(new THREE.Vector3(17, -3, 0), true), {
-        stretchFactor: 1,
-        shrinkFactor: 0,
-        restLength: 10
-      })
+      // // add a fake rope
+      // new ClothConstraint(this._points[2], new ClothPoint(new THREE.Vector3(18.5, -7, 0), true), {
+      //   stretchFactor: 1,
+      //   shrinkFactor: 0,
+      //   restLength: 10
+      // })
     ].filter(Boolean) as ClothConstraint[]
 
     // console.log(this._points.findIndex(p => p.fixed))
   }
 
   i = 0
-  update(deltaSeconds: number) {
-    this.i += 0.005
+  update(deltaSeconds: number, wind: THREE.Vector3) {
+    this.i += 0.0025
     
     for (let i = 0; i < CONSTRAINT_ITERATIONS; i++) {
       for (const constraint of this._constraints) {
@@ -198,7 +198,7 @@ export default class Cloth {
     }
     for (const triangle of this._triangles) {
       triangle.update()
-      triangle.addWindForce(new THREE.Vector3(10, 0, -20))
+      triangle.addWindForce(wind.clone())
     }
     for (const point of this._points) {
       point.addGravity(GRAVITY, deltaSeconds)
@@ -210,8 +210,14 @@ export default class Cloth {
       }
     }
 
-    // update fake rope length
-    this._constraints[this._constraints.length - 1].restLength = Math.cos(this.i) * 6 + 11
+  }
+  
+  onKeyUp() {
+    // this._constraints[this._constraints.length - 1].restLength += 0.05
+  }
+  
+  onKeyDown() {
+    // this._constraints[this._constraints.length - 1].restLength -= 0.05
   }
 
   get vertices() { return this._points.map(p => p.pos) }

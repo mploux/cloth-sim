@@ -7,13 +7,25 @@ import ClothDebugRenderer from './cloth-debug-renderer';
 const GENOA_CONSTRAINT_OPTS: ClothOpts = {
   structuralConstraints: {
     stretchFactor: 1,
-    shrinkFactor: 0.01
+    shrinkFactor: 0.15
   },
   sheerConstraints: {
     stretchFactor: 1,
-    shrinkFactor: 0.01
+    shrinkFactor: 0.15
   },
   isPointFixed: (x: number, y: number) => (y >= 27.8 || x === 0) 
+}
+
+const SPI_CONSTRAINT_OPTS: ClothOpts = {
+  structuralConstraints: {
+    stretchFactor: 1,
+    shrinkFactor: 0.1
+  },
+  sheerConstraints: {
+    stretchFactor: 1,
+    shrinkFactor: 0
+  },
+  isPointFixed: (x: number, y: number) => (y >= 27 || (y === 0 && x >= -6.5) || (y === 0 && x <= 6.5)) 
 }
 
 const MAINSAIL_CONSTRAINT_OPTS: ClothOpts = {
@@ -47,21 +59,50 @@ const scene = new THREE.Scene();
 const genoaCloth = await loadCloth('./genoa_sail.obj', GENOA_CONSTRAINT_OPTS)
 const genoaDebugRenderer = new ClothDebugRenderer(genoaCloth)
 
+const spiCloth = await loadCloth('./spi_sail.obj', SPI_CONSTRAINT_OPTS)
+const spiDebugRenderer = new ClothDebugRenderer(spiCloth)
+
 // const mainSailCloth = await loadCloth('./main_sail.obj', MAINSAIL_CONSTRAINT_OPTS)
 // const mainSailDebugRenderer = new ClothDebugRenderer(mainSailCloth)
 
 // points.scale.set(10, 10, 10)
 // lines.forEach(line => line.scale.set(10, 10, 10))
 
+document.addEventListener('keydown', (event) => {
+  handleKeyPress(event.key);
+});
+
+function handleKeyPress(key: string) {
+  switch (key) {
+    case 'ArrowUp':
+      genoaCloth.onKeyUp()
+      break;
+    case 'ArrowDown':
+      genoaCloth.onKeyDown()
+      break;
+    case 'ArrowLeft':
+      break;
+    case 'ArrowRight':
+      break;
+  }
+}
+
 // scene.add(...mainSailDebugRenderer.sceneObjects)
-scene.add(...genoaDebugRenderer.sceneObjects)
+scene.add(...spiDebugRenderer.sceneObjects)
+
+const wind = new THREE.Vector3(0, 0, -20)
+  .multiplyScalar(0.51444) // knots to m/s
 
 function update(deltaSecs: number) {
   // mainSailCloth.update(deltaSecs)
-  genoaCloth.update(deltaSecs)
+  // genoaCloth.update(deltaSecs, wind)
+  spiCloth.update(deltaSecs, wind)
 
   // mainSailDebugRenderer.update()
-  genoaDebugRenderer.update() //new THREE.Vector3(-8.5, 0, 0))
+  // genoaDebugRenderer.update() //new THREE.Vector3(-8.5, 0, 0))
+  spiDebugRenderer.update() //new THREE.Vector3(-8.5, 0, 0))
+
+  document.getElementById('wind-speed-slot1')!.innerHTML = 'WIND: ' + (wind.length() * 1.94384).toFixed(2) + ' knots'
 }
 
 let lastTime = performance.now()

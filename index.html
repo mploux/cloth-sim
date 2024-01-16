@@ -4,10 +4,20 @@
 		<meta charset="utf-8">
 		<title>My first three.js app</title>
 		<style>
-			body { margin: 0; }
+			body { margin: 0; font-family: monospace; }
 		</style>
 	</head>
 	<body>
 		<script type="module" src="src/main.ts"></script>
-	</body>
+    <div style="position: absolute; inset: 0px; pointer-events: none; color: white; padding: 16px">
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span id="wind-speed-slot1"></span>
+        <span id="wind-speed-slot2"></span>
+        <span id="wind-speed-slot3"></span>
+        <span id="wind-speed-slot4"></span>
+        <span id="wind-speed-slot5"></span>
+        <span id="wind-speed-slot6"></span>
+      </div>
+    </div>
+  </body>
 </html>
